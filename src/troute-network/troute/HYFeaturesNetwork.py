@@ -88,11 +88,15 @@ def read_geopkg(file_path, compute_parameters, waterbody_parameters, cpu_pool):
     flowpath_attributes_df = table_dict.get('flowpath_attributes', pd.DataFrame())
 
     # Check if 'link' column exists and rename it to 'id'
-    if 'link' in flowpath_attributes_df.columns:
-        flowpath_attributes_df.rename(columns={'link': 'id'}, inplace=True) 
-     
+    if 'link' in flowpath_attributes_df.columns and 'id' not in flowpath_attributes_df.columns:
+        flowpath_attributes_df.rename(columns={'link': 'id'}, inplace=True)
+
     # Merge flowpaths and flowpath_attributes
     if not flowpath_attributes_df.empty and not flowpaths_df.empty:
+        # hf v2.2 introduces duplicate columns in the different tables
+        unique_cols = set(flowpath_attributes_df.columns).difference(set(flowpaths_df.columns))
+        unique_cols.add("id")
+        flowpath_attributes_df = flowpath_attributes_df[list(unique_cols)]
         flowpaths = pd.merge(
             flowpaths_df, 
             flowpath_attributes_df, 
