@@ -735,7 +735,7 @@ class HYFeaturesNetwork(AbstractNetwork):
             # data in memory for large domains and many timesteps... - shorvath, Feb 28, 2024
             qlat_file_pattern_filter = self.forcing_parameters.get("qlat_file_pattern_filter", None)
             if qlat_file_pattern_filter=="nex-*":
-                for f in qlat_files:
+                def process_file(f):
                     df = pd.read_csv(f, names=['timestamp', 'qlat'], index_col=[0])
                     df['timestamp'] = pd.to_datetime(df['timestamp']).dt.strftime('%Y%m%d%H%M')
                     df = df.set_index('timestamp')
@@ -743,8 +743,10 @@ class HYFeaturesNetwork(AbstractNetwork):
                     df.index = [int(os.path.basename(f).split('-')[1].split('_')[0])]
                     df = df.rename_axis(None, axis=1)
                     df.index.name = 'feature_id'
-                    dfs.append(df)
-                
+                    return df
+
+                with Parallel(n_jobs=-1) as p:
+                    dfs = p(delayed(process_file)(f) for f in qlat_files)                
                 # lateral flows [m^3/s] are stored at NEXUS points with NEXUS ids
                 nexuses_lateralflows_df = pd.concat(dfs, axis=0) 
             else:
