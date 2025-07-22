@@ -16,6 +16,7 @@ import troute.nhd_io as nhd_io #FIXME
 from troute.nhd_network import reverse_dict, extract_connections, reverse_network, reachable
 from .rfc_lake_gage_crosswalk import get_rfc_lake_gage_crosswalk, get_great_lakes_climatology
 import re
+import glob
 __verbose__ = False
 __showtiming__ = False
 
@@ -249,7 +250,7 @@ class HYFeaturesNetwork(AbstractNetwork):
     """
     
     """
-    __slots__ = ["_upstream_terminal", "_nexus_latlon", "_duplicate_ids_df",]
+    __slots__ = ["_upstream_terminal", "_nexus_latlon", "_duplicate_ids_df", "_raw_dataframe",]
 
     def __init__(self, 
                  supernetwork_parameters, 
@@ -372,11 +373,13 @@ class HYFeaturesNetwork(AbstractNetwork):
     @property
     def waterbody_null(self):
         return np.nan #pd.NA
+
     
-    
+
     def preprocess_network(self, flowpaths, nexus):
+
         self._dataframe = flowpaths
-        
+        self._raw_dataframe = flowpaths
         cols = self.supernetwork_parameters.get('columns', None)
         if cols:
             col_idx = list(set(cols.values()).intersection(set(self.dataframe.columns)))
@@ -709,7 +712,7 @@ class HYFeaturesNetwork(AbstractNetwork):
             self._usace_lake_gage_crosswalk = pd.DataFrame()
             self._rfc_lake_gage_crosswalk = pd.DataFrame()
     
-    def build_qlateral_array(self, run,):
+    def build_qlateral_array(self, run, ):
         
         # TODO: set default/optional arguments
         qts_subdivisions = run.get("qts_subdivisions", 1)
@@ -730,10 +733,34 @@ class HYFeaturesNetwork(AbstractNetwork):
             
             dfs=[]
             
+            # Make a copy of the raw input DataFrame to avoid modifying the original data in-place
+            flowpath_dataframe = self._raw_dataframe.copy()
+            
+            # Extract the numeric part of each flowpath ID (e.g., from "wb-1091162" to "1091162")
+            # Assumes 'id' column contains strings with a hyphen separator
+            flowpath_dataframe['id'] = [
+                r.split('-')[1] if '-' in r else r for r in flowpath_dataframe['id']
+            ]
+            
+            # Calculate a unit conversion factor (m²/s) based on area in km²
+            # Converts from km² to m² (×1,000²), then normalizes over an hourly time base (÷3600)
+            flowpath_dataframe['unit_factor'] = flowpath_dataframe['areasqkm'] * ((1000 ** 2) / 3600)
+            
+            
+            # Create a lookup dictionary that maps each flowpath ID to its corresponding unit factor
+            unit_factor = dict(
+                zip(flowpath_dataframe['id'], flowpath_dataframe['unit_factor'])
+            )
+
+            
+            
+
+
             #FIXME Temporary solution to allow t-route to use ngen nex-* output files as forcing files
             # This capability should be here, but we need to think through how to handle all of this 
             # data in memory for large domains and many timesteps... - shorvath, Feb 28, 2024
             qlat_file_pattern_filter = self.forcing_parameters.get("qlat_file_pattern_filter", None)
+            
             if qlat_file_pattern_filter=="nex-*":
                 def process_file(f):
                     df = pd.read_csv(f, names=['timestamp', 'qlat'], index_col=[0])
@@ -748,7 +775,34 @@ class HYFeaturesNetwork(AbstractNetwork):
                 with Parallel(n_jobs=-1) as p:
                     dfs = p(delayed(process_file)(f) for f in qlat_files)                
                 # lateral flows [m^3/s] are stored at NEXUS points with NEXUS ids
-                nexuses_lateralflows_df = pd.concat(dfs, axis=0) 
+                nexuses_lateralflows_df = pd.concat(dfs, axis=0)
+                
+                
+                
+            elif qlat_file_pattern_filter == "cat-*":
+              def process_file(f):
+                  df = pd.read_csv(f, usecols=['Time', 'Q_OUT'])
+                  df.rename(columns={'Time': 'timestamp', 'Q_OUT': 'qlat'}, inplace=True)
+                  df['timestamp'] = pd.to_datetime(df['timestamp']).dt.strftime('%Y%m%d%H%M')
+                  df = df.set_index('timestamp')
+                  df = df.T
+                  df.index = [int(os.path.basename(f).split('cat-')[1].split('_')[0].split('.')[0])]
+                  df = df.rename_axis(None, axis=1)
+                  df.index.name = 'feature_id'
+                  return df
+        
+              # Process all "cat-*" files in parallel
+              with Parallel(n_jobs=-1) as p:
+                  dfs = p(delayed(process_file)(f) for f in qlat_files)
+          
+              # Concatenate all processed DataFrames into one
+              nexuses_lateralflows_df = pd.concat(dfs, axis=0)
+          
+              # Apply unit scaling only in the 'cat-*' case
+              nexuses_lateralflows_df = scale_lateral_flows(nexuses_lateralflows_df, unit_factor)
+              
+              
+                 
             else:
                 for f in qlat_files:
                     df = read_file(f)
@@ -763,8 +817,8 @@ class HYFeaturesNetwork(AbstractNetwork):
                 nexuses_lateralflows_df = pd.concat(dfs, axis=1) 
             
             # Take flowpath ids entering NEXUS and replace NEXUS ids by the upstream flowpath ids
-            qlats_df = nexuses_lateralflows_df.rename(index=self.downstream_flowpath_dict)
-            qlats_df = qlats_df[qlats_df.index.isin(self.segment_index)]
+            #qlats_df = nexuses_lateralflows_df.rename(index=self.downstream_flowpath_dict)
+            qlats_df = nexuses_lateralflows_df[nexuses_lateralflows_df.index.isin(self.segment_index)]
 
             '''
             #For a terminal nexus, we want to include the lateral flow from the catchment contributing to that nexus
@@ -821,7 +875,7 @@ class HYFeaturesNetwork(AbstractNetwork):
 
         if not self.segment_index.empty:
             qlats_df = qlats_df[qlats_df.index.isin(self.segment_index)]
-
+        
         self._qlateral = qlats_df
 
     ######################################################################
@@ -1052,3 +1106,29 @@ def replace_waterbodies_connections(connections, waterbodies):
             new_conn[n] = connections[n]
     
     return new_conn, link_lake
+
+def scale_lateral_flows(df, unit_dict):
+    """
+    Multiply each row in the DataFrame by its corresponding unit factor.
+
+    Parameters:
+    - df: DataFrame with flowpath IDs as index
+    - unit_dict: dict mapping flowpath ID (str or int) to scaling factor
+
+    Returns:
+    - A new DataFrame with selected rows scaled
+    """
+    # Convert all unit factor keys to integers
+    factors = {int(k): v for k, v in unit_dict.items()}
+
+    # Make a copy so the original DataFrame is not changed
+    scaled_df = df.copy()
+
+    # Loop through each key and apply the factor if key exists
+    for key, factor in factors.items():
+        if key in scaled_df.index:
+            scaled_df.loc[key] = scaled_df.loc[key] * factor
+        else:
+            print(f"{key} not found in the DataFrame.")
+
+    return scaled_df

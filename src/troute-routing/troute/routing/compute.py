@@ -1821,7 +1821,9 @@ def compute_diffusive_routing(
         # the column names need to be changed to intergers from zero incrementing by 1
         diffusive_qlats = qlats.copy()
         diffusive_qlats.columns = range(diffusive_qlats.shape[1])  
-
+        print(diffusive_network_data[tw]['mainstem_segs'])
+        print(diffusive_network_data[tw]['tributary_segments'])
+        
         # build diffusive inputs
         diffusive_inputs = diff_utils.diffusive_input_data_v02(
             tw,

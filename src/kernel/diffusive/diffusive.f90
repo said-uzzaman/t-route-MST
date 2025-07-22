@@ -639,7 +639,6 @@ contains
       do jm = 1, nmstem_rch   ! loop over mainstem reaches [upstream-to-downstream]
         j     = mstem_frj(jm) ! reach index
         ncomp = frnw_g(j,1)   ! number of nodes in reach j
-
         ! Calculate the duration of this timestep (dtini)
         ! Timestep duration is selected to maintain numerical stability
         if (j == mstem_frj(1)) then 

@@ -182,7 +182,7 @@ subroutine muskingcungenwm(dt, qup, quc, qdp, ql, dx, bw, tw, twcc,&
     ! *************************************************************
     call courant(h, bfd, bw, twcc, ncc, s0, n, z, dx, dt, ck, cn)
     !print*, "deep down", depthc
-
+    !print*, "C1", C1, "qup", qup, "C2", C2, "quc", quc, "C3", C3, "qdp", qdp, "ql", ql, "qdc", qdc
 end subroutine muskingcungenwm
 
 !**---------------------------------------------------**!
@@ -310,7 +310,7 @@ subroutine secant2_h(z, bw, bfd, twcc, s0, n, ncc, dt, dx, &
     C2 =  (dt/2.0_prec - Km*X)/D
     C3 =  (Km*(1.0_prec-X)-dt/2.0_prec)/D
     C4 =  (ql*dt)/D
-
+    
     !H
     if (interval .eq. lower_interval) then
         if( (C4 .lt. 0.0_prec) .and. (abs(C4) .gt. (C1*qup)+(C2*quc)+(C3*qdp)))  then

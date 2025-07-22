@@ -33,10 +33,10 @@ fi
 #if you have custom static library paths, uncomment below and export them
 #export LIBRARY_PATH=<paths>:$LIBRARY_PATH
 #if you have custom dynamic library paths, uncomment below and export them
-#export LD_LIBRARY_PATHS=<paths>:$LD_LIBRARY_PATHS
+export LD_LIBRARY_PATHS=/home/msmg8/local/lib/:$LD_LIBRARY_PATHS
 if [ -z "$NETCDF" ]
 then
-    export NETCDFINC=/usr/include/openmpi-x86_64/
+    export NETCDFINC=/home/msmg8/local/include/
     # set alternative NETCDF variable include path, for example for WSL
     # (Windows Subsystems for Linux).
     #

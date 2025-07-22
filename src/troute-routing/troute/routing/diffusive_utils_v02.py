@@ -276,16 +276,16 @@ def fp_qlat_map(
                 segID = seg_list[seg]
                 for tsi in range(0, nts_ql_g):
                     if seg < ncomp - 1:
-                        
                         tlf = qlat.loc[segID, tsi]
                         dx = param_df.loc[segID, 'dx']
                         qlat_g[tsi, seg, frj] = tlf / dx  # [m^2/sec]
-
                     else:
                         qlat_g[
                             tsi, seg, frj
-                        ] = 0.0  # seg=ncomp is actually for bottom node in Fotran code.
-                        # And, lateral flow enters between adjacent nodes.            
+                        ] = 0.0  # seg=ncomp is actually for bottom node in Fotran code.)
+                                 # And, lateral flow enters between adjacent nodes. 
+    
+            
     return qlat_g
 
 def fp_ubcd_map(frnw_g, pynw, nts_ub_g, nrch_g, ds_seg, upstream_inflows):
@@ -305,7 +305,6 @@ def fp_ubcd_map(frnw_g, pynw, nts_ub_g, nrch_g, ds_seg, upstream_inflows):
     ubcd_g -- (ndarray of float32) upstream boundary data (m3/sec)
     """
     ubcd_g = np.zeros((nts_ub_g, nrch_g))        
-    
     return ubcd_g
 
 
@@ -329,6 +328,7 @@ def fp_dbcd_map(usgsID2tw=None, usgssDT=None, usgseDT=None, usgspCd=None):
     # ** 1) downstream stage (here, lake elevation) boundary condition
     # from nwis_client.iv import IVDataService
     # install via: pip install hydrotools.nwis_client
+
     if usgsID2tw:
         try:
             from hydrotools.nwis_client.iv import IVDataService
@@ -388,7 +388,7 @@ def fp_dbcd_map(usgsID2tw=None, usgssDT=None, usgseDT=None, usgspCd=None):
     else:
         nts_db_g = 1
         dbcd_g = -np.ones(nts_db_g)
-        
+    print(dbcd_g)   
     return nts_db_g, dbcd_g
 
 def fp_naturalxsec_map(
@@ -432,7 +432,7 @@ def fp_naturalxsec_map(
         
         # maximum number of stations along a single cross section
         mxnbathy_g = topobathy_bytw.index.value_counts().max()
-
+        
         # initialize arrays to store cross section data
         x_bathy_g    = np.zeros((mxnbathy_g, mxncomp_g, nrch_g))
         z_bathy_g    = np.zeros((mxnbathy_g, mxncomp_g, nrch_g))
@@ -446,7 +446,7 @@ def fp_naturalxsec_map(
             # loop through all reaches of order x
             for head_segment, reach in ordered_reaches[x]:
                 frj = frj + 1
-
+                print(reach)
                 # list of segments in this reach
                 seg_list = reach["segments_list"]
 
@@ -458,7 +458,7 @@ def fp_naturalxsec_map(
 
                     # loop through segments in mainstem reach
                     for seg, segID in enumerate(seg_list):
-                        
+
                         # identify the index in topobathy dataframe that contains
                         # the data we want for this node.
                         if seg == ncomp-1 and x > 0: 
@@ -466,22 +466,25 @@ def fp_naturalxsec_map(
                             # if last node of a reach, but not the last node in the network
                             # use cross section of downstream neighbor
                             seg_idx = reach["downstream_head_segment"][0]
-
+                            print(segID, seg_idx)
+                            
                         elif segID == dbfksegID:
                             
                             # if last node of reach AND last node in the network,
                             # use cross section of upstream neighbor
                             seg_idx = seg_list[seg-1]
+                            print(segID, seg_idx)
                             
                         else:
                             seg_idx = segID
+                            print(segID, seg_idx)
                             
                         # how many stations are in the node cross section?
                         nstations = len(topobathy_bytw.loc[seg_idx])
-                        
+
                         # populate cross section size (# of stations) array
                         size_bathy_g[seg, frj] = nstations
-  
+
                         # populate cross section x, z and mannings n arrays
                         if 'cs_id' in topobathy_bytw.loc[[seg_idx]].columns:
                             x_bathy_g[0:nstations, seg, frj]    = topobathy_bytw.loc[seg_idx].relative_dist
@@ -498,7 +501,7 @@ def fp_naturalxsec_map(
                             So = param_df.loc[seg_idx].s0
                             dx = param_df.loc[seg_idx].dx
                             z_bathy_g[0:nstations, seg, frj] = z_bathy_g[0:nstations, seg, frj] - So * dx   
-   
+                            print(segID, seg_idx)
     else: 
         #if the bathy dataframe is empty, then pass out empty arrays
         x_bathy_g    = np.array([]).reshape(0,0,0)

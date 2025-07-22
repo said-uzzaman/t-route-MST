@@ -79,6 +79,7 @@ def read_parquet(file_path, seg_ids):
     
     if 'hy_id' in df.columns and not df['hy_id'].str.isnumeric().all():
         df['hy_id'] = df['hy_id'].apply(lambda x: x.split('-')[-1])
+
     return df
 
 

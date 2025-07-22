@@ -118,6 +118,8 @@ class AbstractNetwork(ABC):
         run["qlat_file_gw_bucket_flux_col"] = run.get("qlat_file_gw_bucket_flux_col", qlat_file_gw_bucket_flux_col)
         run["qlat_file_terrain_runoff_col"] = run.get("qlat_file_terrain_runoff_col", qlat_file_terrain_runoff_col)
         
+        
+        
         #---------------------------------------------------------------------------
         # Assemble lateral inflow data
         #---------------------------------------------------------------------------
@@ -521,7 +523,7 @@ class AbstractNetwork(ABC):
             self.filter_diffusive_nexus_pts()
     
     def create_independent_networks(self,):
-
+        LOG.info("Initializing Hyromst T-Route system...")
         LOG.info("organizing connections into reaches ...")
         start_time = time.time() 
         gage_break_segments = set()
@@ -749,7 +751,7 @@ class AbstractNetwork(ABC):
         nts                = forcing_parameters.get("nts", None)
         max_loop_size      = forcing_parameters.get("max_loop_size", 12)
         dt                 = forcing_parameters.get("dt", None)
-
+        
         try:
             qlat_input_folder = pathlib.Path(qlat_input_folder)
             assert qlat_input_folder.is_dir() == True
@@ -792,6 +794,29 @@ class AbstractNetwork(ABC):
                     'final_timestamp': final_timestamp
                 }
             ]
+            
+            
+        elif forcing_glob_filter == "cat-*":
+          # Get all files matching the 'cat-*' pattern, sorted alphabetically
+          all_files = sorted(qlat_input_folder.glob(forcing_glob_filter))
+      
+          # Read the last timestamp from the 'Time' column of the first file
+          final_timestamp_str = pd.read_csv(all_files[0], usecols=["Time"]).iloc[-1, 0]
+          final_timestamp = datetime.strptime(final_timestamp_str.strip(), "%Y-%m-%d %H:%M:%S")
+      
+          # Extract only the base filenames (e.g., 'cat-1091162.csv') from the full paths
+          all_files = [os.path.basename(f) for f in all_files]
+      
+          # Package the list of files, number of time steps, and final timestamp into a run configuration
+          run_sets = [
+              {
+                  'qlat_files': all_files,
+                  'nts': nts,
+                  'final_timestamp': final_timestamp
+              }
+          ]
+
+
             
         # TODO: Throw errors if insufficient input data are available
         elif run_sets:        
@@ -840,6 +865,7 @@ class AbstractNetwork(ABC):
             dt_qlat = dt_qlat_timedelta.seconds
 
             # determine qts_subdivisions
+            
             qts_subdivisions = dt_qlat / dt
             if dt_qlat % dt == 0:
                 qts_subdivisions = int(dt_qlat / dt)
@@ -915,7 +941,7 @@ class AbstractNetwork(ABC):
                 nts_last = nts_accum
                 k += max_loop_size
                 j += 1
-
+        
         return run_sets
     
     def filter_diffusive_nexus_pts(self,):
