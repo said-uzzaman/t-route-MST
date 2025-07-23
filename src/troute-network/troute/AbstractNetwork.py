@@ -523,7 +523,7 @@ class AbstractNetwork(ABC):
             self.filter_diffusive_nexus_pts()
     
     def create_independent_networks(self,):
-        LOG.info("Initializing Hyromst T-Route system...")
+        LOG.info("Initializing Hydromst T-Route system...")
         LOG.info("organizing connections into reaches ...")
         start_time = time.time() 
         gage_break_segments = set()
