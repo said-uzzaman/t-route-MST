@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import multiprocessing
 from datetime import datetime, timedelta
-import time
+
 import os
 import pathlib
 import time
@@ -123,9 +123,7 @@ class AbstractNetwork(ABC):
         #---------------------------------------------------------------------------
         # Assemble lateral inflow data
         #---------------------------------------------------------------------------
-        print("Process started. Waiting for 60 seconds...")
-        time.sleep(60)
-        print("Process completed.")
+
         # Place holder, if reading qlats from a file use this.
         # TODO: add an option for reading qlat data from BMI/model engine
         start_time = time.time()
