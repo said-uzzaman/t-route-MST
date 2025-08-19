@@ -776,7 +776,7 @@ class HYFeaturesNetwork(AbstractNetwork):
                     dfs = p(delayed(process_file)(f) for f in qlat_files)                
                 # lateral flows [m^3/s] are stored at NEXUS points with NEXUS ids
                 nexuses_lateralflows_df = pd.concat(dfs, axis=0)
-                
+                print(nexuses_lateralflows_df)
                 
                 
             elif qlat_file_pattern_filter == "cat-*":
