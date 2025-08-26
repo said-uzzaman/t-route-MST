@@ -97,12 +97,10 @@ def build_da_sets(da_params, run_sets, t0):
         # of the TimeSlice file interpolation stack
         pad_hours = da_params.get("timeslice_lookback_hours",0)
         timeslice_pad = pad_hours * 4 # number of 15 minute TimeSlices in the pad
-
         # timedelta of TimeSlice data - typically 15 minutes
         dt_timeslice = timedelta(minutes = 15)
 
         da_sets = [] # initialize list to store TimeSlice set lists
-
         # Loop through each run set and build lists of available TimeSlice files
         for (i, set_dict) in enumerate(run_sets):
             

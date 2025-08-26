@@ -1180,14 +1180,11 @@ def get_obs_from_timeslices(
     # concatenate dataframes
     timeslice_obs_df  = pd.concat(timeslice_obs_frames, axis = 1)
     timeslice_qual_df = pd.concat(timeslice_qual_frames, axis = 1)   
-    print(timeslice_obs_df)
-    print(timeslice_qual_df) 
     # Link <> gage crosswalk data
     df = crosswalk_df.reset_index()
     df[crosswalk_gage_field] = np.asarray(df[crosswalk_gage_field]).astype('<U15')
     df = df.set_index(crosswalk_gage_field)
     df.index = df.index.str.strip()
-    print(df)
     # join crosswalk data with timeslice data, indexed on crosswalk destination field
     observation_df = (df.join(timeslice_obs_df).
                reset_index().
@@ -1198,6 +1195,7 @@ def get_obs_from_timeslices(
                reset_index().
                set_index(crosswalk_dest_field).
                select_dtypes(include='number'))
+    
     # ---- Laugh testing ------
     # screen-out erroneous qc flags
     observation_qual_df = (observation_qual_df.
@@ -1219,7 +1217,6 @@ def get_obs_from_timeslices(
     
     # specify resampling frequency 
     frequency = str(int(frequency_secs/60))+"min"    
-    
     # interpolate and resample frequency
     buffer_df = observation_df_T.resample(frequency).asfreq()
     with Parallel(n_jobs=cpu_pool) as parallel:
@@ -1249,7 +1246,6 @@ def get_obs_from_timeslices(
     
     # re-transpose, making link the index
     observation_df_new = observation_df_T.transpose()
-    
     return observation_df_new
 
 

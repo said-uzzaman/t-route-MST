@@ -76,12 +76,11 @@ class NudgingDA(AbstractDA):
     def __init__(self, network, from_files, value_dict, da_run=[]):
         LOG.info("NudgingDA class is Started.")
         main_start_time = time.time()
+        
         data_assimilation_parameters = self._data_assimilation_parameters
         run_parameters = self._run_parameters
-        
         # isolate user-input parameters for streamflow data assimilation
         streamflow_da_parameters = data_assimilation_parameters.get('streamflow_da', None)
-
         da_parameter_dict = {"da_decay_coefficient": data_assimilation_parameters.get("da_decay_coefficient", 120),
                              "diffusive_streamflow_nudging": False}
         
@@ -109,6 +108,7 @@ class NudgingDA(AbstractDA):
 
                     # THIS LINE WAS REPLACED BY THE BMI TRANSPORT STUFF
                     usgs_df = value_dict['usgs_df']
+                    
 
                 else:
 
@@ -143,7 +143,6 @@ class NudgingDA(AbstractDA):
                 
                 #usgs_df = usgs_df.join(network.link_gage_df.reset_index().set_index('gages'),how='inner').set_index('link').sort_index()
                 self._usgs_df = network.link_gage_df.reset_index().set_index('gages').join(usgs_df).set_index('link').sort_index()
-                
                 # Next is lastobs - can also be implemented following bmi_array2df module
                 lastobs = streamflow_da_parameters.get("lastobs_file", False)
                 
@@ -213,9 +212,10 @@ class NudgingDA(AbstractDA):
                     self._last_obs_df = _reindex_link_to_lake_id(self._last_obs_df, network.link_lake_crosswalk)
                 
                 self._usgs_df = _create_usgs_df(data_assimilation_parameters, streamflow_da_parameters, run_parameters, network, da_run)
+
                 if ('canada_timeslice_files' in da_run) & (not network.canadian_gage_df.empty):
                     self._canada_df = _create_canada_df(data_assimilation_parameters, streamflow_da_parameters, run_parameters, network, da_run)
-                    self._canada_is_created = True                    
+                    self._canada_is_created = True                   
         LOG.debug("NudgingDA class is completed in %s seconds." % (time.time() - main_start_time))
         
     def update_after_compute(self, run_results, time_increment):
@@ -243,11 +243,11 @@ class NudgingDA(AbstractDA):
             - lastobs_df               (DataFrame): Last gage observations data for DA
         '''
         streamflow_da_parameters = self._data_assimilation_parameters.get('streamflow_da', None)
-
+        print(streamflow_da_parameters)
         if streamflow_da_parameters:
             if streamflow_da_parameters.get('streamflow_nudging', False):
                 self._last_obs_df = new_lastobs(run_results, time_increment)
-
+        print(self._last_obs_df)
     def update_for_next_loop(self, network, da_run,):
         '''
         Function to update data assimilation object for the next loop iteration. This is assumed

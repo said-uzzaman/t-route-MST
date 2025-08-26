@@ -625,7 +625,8 @@ class HYFeaturesNetwork(AbstractNetwork):
             # split the hl_uri column into type and value
             gages_df[['type','value']] = gages_df.hl_uri.str.split('-',expand=True,n=1)
             # filter for 'Gages' only
-            gages_df = gages_df[gages_df['type'].isin(['Gages','NID'])]
+            #gages_df = gages_df[gages_df['type'].isin(['Gages','NID'])]
+            gages_df = gages_df[gages_df['type'].isin(['Gages','NID','gages'])]
             # Some IDs have multiple gages associated with them. This will expand the dataframe so
             # there is a unique row per gage ID. Also adds lake ids to the dataframe for creating 
             # lake-gage crosswalk dataframes.
@@ -817,8 +818,8 @@ class HYFeaturesNetwork(AbstractNetwork):
                 nexuses_lateralflows_df = pd.concat(dfs, axis=1) 
             
             # Take flowpath ids entering NEXUS and replace NEXUS ids by the upstream flowpath ids
-            qlats_df = nexuses_lateralflows_df.rename(index=self.downstream_flowpath_dict)
-            qlats_df = qlats_df[qlats_df.index.isin(self.segment_index)]
+            #qlats_df = nexuses_lateralflows_df.rename(index=self.downstream_flowpath_dict)
+            qlats_df = nexuses_lateralflows_df[nexuses_lateralflows_df.index.isin(self.segment_index)]
 
             '''
             #For a terminal nexus, we want to include the lateral flow from the catchment contributing to that nexus
