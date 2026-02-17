@@ -243,11 +243,11 @@ class NudgingDA(AbstractDA):
             - lastobs_df               (DataFrame): Last gage observations data for DA
         '''
         streamflow_da_parameters = self._data_assimilation_parameters.get('streamflow_da', None)
-        print(streamflow_da_parameters)
+        
         if streamflow_da_parameters:
             if streamflow_da_parameters.get('streamflow_nudging', False):
                 self._last_obs_df = new_lastobs(run_results, time_increment)
-        print(self._last_obs_df)
+        
     def update_for_next_loop(self, network, da_run,):
         '''
         Function to update data assimilation object for the next loop iteration. This is assumed

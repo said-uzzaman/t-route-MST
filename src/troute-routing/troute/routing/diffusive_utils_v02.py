@@ -388,7 +388,7 @@ def fp_dbcd_map(usgsID2tw=None, usgssDT=None, usgseDT=None, usgspCd=None):
     else:
         nts_db_g = 1
         dbcd_g = -np.ones(nts_db_g)
-    print(dbcd_g)   
+    #print(dbcd_g)   
     return nts_db_g, dbcd_g
 
 def fp_naturalxsec_map(
@@ -446,7 +446,7 @@ def fp_naturalxsec_map(
             # loop through all reaches of order x
             for head_segment, reach in ordered_reaches[x]:
                 frj = frj + 1
-                print(reach)
+                #print(reach)
                 # list of segments in this reach
                 seg_list = reach["segments_list"]
 
@@ -466,18 +466,18 @@ def fp_naturalxsec_map(
                             # if last node of a reach, but not the last node in the network
                             # use cross section of downstream neighbor
                             seg_idx = reach["downstream_head_segment"][0]
-                            print(segID, seg_idx)
+                            #print(segID, seg_idx)
                             
                         elif segID == dbfksegID:
                             
                             # if last node of reach AND last node in the network,
                             # use cross section of upstream neighbor
                             seg_idx = seg_list[seg-1]
-                            print(segID, seg_idx)
+                            #print(segID, seg_idx)
                             
                         else:
                             seg_idx = segID
-                            print(segID, seg_idx)
+                            #print(segID, seg_idx)
                             
                         # how many stations are in the node cross section?
                         nstations = len(topobathy_bytw.loc[seg_idx])
@@ -501,7 +501,7 @@ def fp_naturalxsec_map(
                             So = param_df.loc[seg_idx].s0
                             dx = param_df.loc[seg_idx].dx
                             z_bathy_g[0:nstations, seg, frj] = z_bathy_g[0:nstations, seg, frj] - So * dx   
-                            print(segID, seg_idx)
+                            #print(segID, seg_idx)
     else: 
         #if the bathy dataframe is empty, then pass out empty arrays
         x_bathy_g    = np.array([]).reshape(0,0,0)

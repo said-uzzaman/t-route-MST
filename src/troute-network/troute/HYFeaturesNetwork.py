@@ -323,7 +323,7 @@ class HYFeaturesNetwork(AbstractNetwork):
             self.preprocess_waterbodies(lakes, nexus)
 
             # Preprocess data assimilation objects #TODO: Move to DataAssimilation.py?
-            self.preprocess_data_assimilation(network)
+            self.preprocess_data_assimilation(network, flowpaths)
         
             if self.preprocessing_parameters.get('preprocess_output_folder', None):
                 self.write_preprocessed_data()
@@ -614,7 +614,7 @@ class HYFeaturesNetwork(AbstractNetwork):
 
         self._dataframe = self.dataframe.drop('waterbody', axis=1).drop_duplicates()
 
-    def preprocess_data_assimilation(self, network):
+    def preprocess_data_assimilation(self, network, flowpaths):
         if not network.empty:
             gages_df = network[['id','hl_uri','hydroseq']].drop_duplicates()
             # clear out missing values
@@ -641,11 +641,63 @@ class HYFeaturesNetwork(AbstractNetwork):
             idx_id = gages_df.index.name
             if not idx_id:
                 idx_id = 'index'
+            # Modification:
+            # Previously, streamflow DA gages were derived from `network`
+            # using hydrosequence-based downstream filtering.
+            #
+            # Now:
+            # Streamflow gage mapping is derived directly from `flowpaths[['id','gage']]`.
+            # This ensures consistency with flowpath-level topology and avoids
+            # dependence on hydrosequence sorting.
+    
+            gages_df2 = flowpaths[['id', 'gage']].drop_duplicates()
+    
+            # Remove missing gage assignments
+            gages_df2 = gages_df2[~gages_df2['gage'].isnull()]
+    
+            # Convert flowpath IDs to integer segment IDs
+            gages_df2['id'] = (
+                gages_df2['id']
+                .str.split('-', expand=True)
+                .loc[:, 1]
+                .astype(float)
+                .astype(int)
+            )
+    
+            # Standardize column name to match network-based dataframe
+            gages_df2.rename(columns={'gage': 'value'}, inplace=True)
+    
+            # Expand multi-gage entries
+            gages_df2['value'] = gages_df2.value.str.split(' ')
+            gages_df2 = (
+                gages_df2
+                .explode(column='value')
+                .set_index('id')
+                .join(
+                    pd.DataFrame()
+                    .from_dict(self.waterbody_connections, orient='index', columns=['lake_id'])
+                )
+            )
+    
+            # Identify USGS numeric gage IDs (used for streamflow DA)
+            usgs_ind2 = gages_df2.value.str.isnumeric()
+    
+            idx_id2 = gages_df2.index.name
+            if not idx_id2:
+                idx_id2 = 'index'
+    
+            # NOTE:
+            # This version does NOT apply hydrosequence-based downstream filtering.
+            # It assumes gage-to-segment association is already topologically correct
+            # in the flowpaths input.
+    
             self._gages = (
-                gages_df.loc[usgs_ind].reset_index()
-                .sort_values('hydroseq').drop_duplicates(['value'],keep='last')
-                .set_index(idx_id)[['value']].rename(columns={'value': 'gages'})
-                .rename_axis(None, axis=0).to_dict()
+                gages_df2.loc[usgs_ind2]
+                .reset_index()
+                .set_index(idx_id2)[['value']]
+                .rename(columns={'value': 'gages'})
+                .rename_axis(None, axis=0)
+                .to_dict()
             )
             
             #FIXME: temporary solution, add canadian gage crosswalk dataframe. This should come from
