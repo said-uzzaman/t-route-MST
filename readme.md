@@ -304,8 +304,6 @@ The routing will now be performed at the flowpath level with properly scaled lat
 
 ## Author
 
-## Author
-
 **Md Saiduzzaman**  
 Graduate Research Assistant, Department of Civil, Architectural and Environmental Engineering  
 Missouri University of Science and Technology, Rolla, MO, USA   
