@@ -303,7 +303,6 @@ For a typical NextGen in a Box setup:
 The routing will now be performed at the flowpath level with properly scaled lateral flows.
 
 ## Author
-
 **Md Saiduzzaman**  
 Graduate Research Assistant, Department of Civil, Architectural and Environmental Engineering  
 Missouri University of Science and Technology, Rolla, MO, USA   
