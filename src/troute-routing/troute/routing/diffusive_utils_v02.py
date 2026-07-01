@@ -161,7 +161,7 @@ def fp_network_map(
                 frnw_g[frj, 3 + i] = (
                     frnw_g[frj, 3 + i] + 1
                 )  # upstream reach indicds for frj reach
-
+    
     return frnw_g 
 
 
@@ -573,7 +573,7 @@ def fp_da_map(
                     if segID in usgs_df_complete.index:
                         usgs_da_g[:,frj] = usgs_df_complete.loc[segID].values[0:nts_da_g]
                         usgs_da_reach_g[frj] = frj + 1  # Fortran-Python index relationship, that is Python i = Fortran i+1
-                       
+                        print(f"DA assigned: segID={segID}, reach={frj+1}")
     return nts_da_g, usgs_da_g, usgs_da_reach_g
 
 def fp_coastal_boundary_input_map(

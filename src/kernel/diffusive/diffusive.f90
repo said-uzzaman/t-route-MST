@@ -206,6 +206,7 @@ contains
     double precision :: slopeQ, intcQ, slopeE, intcE, slopeD, intcD
     double precision :: lfrac, dst_lnk, dst_top, dst_btm
     double precision :: mindepth_nstab
+    double precision :: t_next_save
     double precision, dimension(:), allocatable :: tarr_ql
     double precision, dimension(:), allocatable :: varr_ql
     double precision, dimension(:), allocatable :: tarr_ub
@@ -351,7 +352,7 @@ contains
         
   !-----------------------------------------------------------------------------
   ! variable initializations
-  
+
     routingNotChanged   = 0
     applyNaturalSection = 1
     x                   = 0.0
@@ -373,7 +374,8 @@ contains
     elv_ev_g            = 0.0
     depth_ev_g          = 0.0
     temp_q_ev_g         = 0.0
-    temp_elv_ev_g       = 0.0    
+    temp_elv_ev_g       = 0.0
+  
   !-----------------------------------------------------------------------------
   ! Identify mainstem reaches and list their ids in an array
 
@@ -588,9 +590,9 @@ contains
   ! flow and depth on mainstem segments.
           
     ts_ev = 1
+    t_next_save = t0 * 60.0
     do while (t <= tfin * 60.0)
-      if ( (mod( (t - t0 * 60.) * 60., saveInterval) <= TOLERANCE) &
-            .or. (t == tfin * 60.) ) then
+      if ( t >= t_next_save - TOLERANCE ) then
         do j = 1, nlinks
           if (all(mstem_frj /= j)) then ! NOT a mainstem reach
             do n = 1, nts_qtrib_g
@@ -602,6 +604,7 @@ contains
           end if
         end do
         ts_ev = ts_ev + 1
+        t_next_save = t_next_save + saveInterval / 60.0
       end if
       t = t + dtini / 60. !* [min]
     end do
@@ -625,6 +628,7 @@ contains
     timestep                = 0
     ts_ev                   = 1
     t                       = t0 * 60.0
+    t_next_save             = t0 * 60.0 + saveInterval / 60.0
 
   !-----------------------------------------------------------------------------
   ! Ordered network routing computations
@@ -784,9 +788,11 @@ contains
       if (mod(t,30.)==0.) then
         print*, "diffusive simulation time in minute=", t
       endif
-
+      if ( t >= t_next_save + saveInterval / 60.0 - TOLERANCE ) then
+          print*, 'WARNING: skipped save boundary! t=', t, 't_next_save=', t_next_save
+      end if
       ! write results to output arrays
-      if ( (mod((t - t0 * 60.) * 60., saveInterval) <= TOLERANCE) .or. (t == tfin * 60.)) then
+      if ( t >= t_next_save - TOLERANCE .or. t >= tfin * 60.0 - TOLERANCE ) then
         do jm = 1, nmstem_rch
           j     = mstem_frj(jm)
           ncomp = frnw_g(j, 1)
@@ -809,10 +815,11 @@ contains
         
         ! Advance recording timestep
         ts_ev = ts_ev+1
+        t_next_save = t_next_save + saveInterval / 60.0
       end if
 
       ! write initial conditions to output arrays
-      if ( ( t == t0 + dtini / 60. ) ) then
+      if ( abs(t - (t0 * 60.0 + dtini / 60.0)) <= TOLERANCE ) then
         do jm = 1, nmstem_rch  !* mainstem reach only
           j     = mstem_frj(jm)
           ncomp = frnw_g(j, 1)
@@ -844,6 +851,8 @@ contains
       pere    = -999
       
     end do  ! end of time loop
+    print*, 'Expected output steps:', ntss_ev_g
+    print*, 'Actual output steps:  ', ts_ev - 1
     
     !---------------------------------------------------------------------------
     ! map routing result from refactored hydrofabric to unrefactored hydrofabric
@@ -918,7 +927,7 @@ contains
           deallocate(used_lfrac)
           deallocate(flag_lfrac)   
         endif    
-   
+    close(unit=99)
     deallocate(frnw_g)
     deallocate(area, bo, pere, areap, qp, z,  depth, sk, co, dx) 
     deallocate(volRemain, froud, courant, oldQ, newQ, oldArea, newArea, oldY, newY)
@@ -1132,7 +1141,7 @@ contains
     
     ! Local variables
       integer :: ncomp
-      integer :: i, irow, flag_da, n
+      integer :: i, irow, flag_da, n, it_da
       double precision :: a1, a2, a3, a4
       double precision :: b1, b2, b3, b4
       double precision :: dd1, dd2, dd3, dd4
@@ -1145,6 +1154,14 @@ contains
       double precision :: currentQ
       double precision :: eei_ghost, ffi_ghost, exi_ghost
       double precision :: fxi_ghost, qp_ghost, qpx_ghost
+
+    ! PRE-DA logging support
+      logical, save :: preDA_file_opened = .false.
+      integer, parameter :: preDA_unit = 99
+      character(len=*), parameter :: preDA_fname = 'DW_DA.txt'
+      double precision :: q_before_DA
+      integer :: it_da_safe
+      double precision, save :: t_next_save_da = -1.0 
     !-----------------------------------------------------------------------------
     !* change 20210228: All qlat to a river reach is applied to the u/s boundary
     !* Note: lateralFlow(1,j) is already added to the boundary
@@ -1279,30 +1296,54 @@ contains
       qpx_ghost = 0.
       
       ! when a reach has usgs streamflow data at its location, apply DA
-      !if (usgs_da_reach(j) /= 0) then
-        
-      !  allocate(varr_da(nts_da))
-      !  do n = 1, nts_da
-      !      varr_da(n) = usgs_da(n, j)
-      !  end do
-      !  qp(ncomp,j) = intp_y(nts_da, tarr_da, varr_da, t + dtini/60.)
-      !  flag_da = 1
+      if (usgs_da_reach(j) /= 0) then
+
+        ! pre-DA value
+        q_before_DA = eei(ncomp) * qp_ghost + ffi(ncomp)
+
+        ! Initialize t_next_save_da on first call
+        if (t_next_save_da < 0.0) then
+           t_next_save_da = t0 * 60.0 + saveInterval / 60.0
+        end if
+
+        ! Open file once at the very first boundary write
+        if (.not. preDA_file_opened) then
+           open(unit=preDA_unit, file=preDA_fname, status='replace', action='write')
+           write(preDA_unit,'(A)') 'timestep reach q'
+           preDA_file_opened = .true.
+        end if
+
+        ! Write at save boundaries using t_next_save_da
+        if ( (t + dtini/60.d0) >= t_next_save_da - TOLERANCE &
+             .or. (t + dtini/60.d0 >= tfin*60.d0 - TOLERANCE) ) then
+           it_da_safe = nint( (t + dtini/60.d0 - t0*60.d0)*60.d0 / saveInterval )
+           write(preDA_unit,'(I12,1X,I8,1X,ES24.16)') it_da_safe, j, q_before_DA
+           t_next_save_da = t_next_save_da + saveInterval / 60.0
+        end if
+
+
+        allocate(varr_da(nts_da))
+        do n = 1, nts_da
+            varr_da(n) = usgs_da(n, j)
+        end do
+        qp(ncomp,j) = intp_y(nts_da, tarr_da, varr_da, t + dtini/60.)
+        flag_da = 1
         ! check usgs_da value is in good quality
-      !  irow = locate(tarr_da, t + dtini/60.)
-      !  if (irow == nts_da) then
-      !    irow = irow-1
-      !  endif        
-      !  if ((varr_da(irow)<= -4443.999).or.(varr_da(irow+1)<= -4443.999)) then
+        irow = locate(tarr_da, t + dtini/60.)
+        if (irow == nts_da) then
+          irow = irow-1
+        endif        
+        if ((varr_da(irow)<= -4443.999).or.(varr_da(irow+1)<= -4443.999)) then
           ! when usgs data is missing or in poor quality
           qp(ncomp,j)  = eei(ncomp) * qp_ghost + ffi(ncomp)
           flag_da = 0
-      !  endif
-      !  deallocate(varr_da)
-     ! else
+        endif
+        deallocate(varr_da)
+      else
         
         qp(ncomp,j)  = eei(ncomp) * qp_ghost + ffi(ncomp)
         flag_da = 0
-     ! endif
+      endif
       
       qpx(ncomp,j) = exi(ncomp) *qpx_ghost + fxi(ncomp)
 
