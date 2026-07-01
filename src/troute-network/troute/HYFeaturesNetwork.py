@@ -700,6 +700,7 @@ class HYFeaturesNetwork(AbstractNetwork):
                 .to_dict()
             )
             
+            print(self._gages)
             #FIXME: temporary solution, add canadian gage crosswalk dataframe. This should come from
             # the hydrofabric.
             self._canadian_gage_link_df = pd.DataFrame(columns=['gages','link']).set_index('link')

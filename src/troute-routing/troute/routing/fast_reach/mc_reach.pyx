@@ -765,6 +765,9 @@ cpdef object compute_network_structured(
             # exactly one gage which is relevant for the reach ...
                 gage_i = reach_has_gage[i]
                 usgs_position_i = usgs_positions[gage_i]
+                with open("MC_DA.txt", "a") as f:   # "a" = append mode
+                    f.write(f"timestep={timestep}, usgs_position_i={usgs_position_i}, "
+                            f"gage={gage_i}, flow={flowveldepth[usgs_position_i, timestep, 0]}\n")
                 da_buf = simple_da(
                     timestep,
                     routing_period,
